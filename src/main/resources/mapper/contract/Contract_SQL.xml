@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<!--
+    계약 SQL
+    2016.08.01 홍길동  최초 작성 (iBATIS)
+    2019.08.22 홍길동  MyBatis 로 이전
+-->
+<mapper namespace="com.example.sms.contract.service.impl.ContractMapper">
+
+    <sql id="contractCols">
+        T.CONTRACT_ID, T.ORDER_ID, T.CUST_ID, C.CUST_NM, T.CONTRACT_NM, T.CONTRACT_AMT,
+        T.START_DT, T.END_DT, T.STATUS_CD, T.REG_DT, T.UPD_DT
+    </sql>
+
+    <select id="selectContractList" parameterType="java.util.HashMap"
+            resultType="com.example.sms.contract.service.ContractVO">
+        SELECT
+        <include refid="contractCols"/>
+        FROM TB_CONTRACT T
+        LEFT OUTER JOIN TB_CUSTOMER C ON C.CUST_ID = T.CUST_ID
+        <where>
+            <if test="custId != null and custId != ''">
+                T.CUST_ID = #{custId}
+            </if>
+            <if test="statusCd != null and statusCd != ''">
+                AND T.STATUS_CD = #{statusCd}
+            </if>
+            <if test="endDt != null and endDt != ''">
+                AND T.END_DT &lt;= #{endDt}
+            </if>
+        </where>
+        ORDER BY T.REG_DT DESC
+    </select>
+
+    <select id="selectContract" parameterType="string" resultType="com.example.sms.contract.service.ContractVO">
+        SELECT
+        <include refid="contractCols"/>
+        FROM TB_CONTRACT T
+        LEFT OUTER JOIN TB_CUSTOMER C ON C.CUST_ID = T.CUST_ID
+        WHERE T.CONTRACT_ID = #{contractId}
+    </select>
+
+    <insert id="insertContract" parameterType="com.example.sms.contract.service.ContractVO">
+        INSERT INTO TB_CONTRACT (CONTRACT_ID, ORDER_ID, CUST_ID, CONTRACT_NM, CONTRACT_AMT,
+                                 START_DT, END_DT, STATUS_CD, REG_DT)
+        VALUES (#{contractId}, #{orderId}, #{custId}, #{contractNm}, #{contractAmt},
+                #{startDt}, #{endDt}, '10', NOW())
+    </insert>
+
+    <update id="updateContractAmount">
+        UPDATE TB_CONTRACT
+           SET CONTRACT_AMT = #{contractAmt},
+               UPD_DT = NOW()
+         WHERE CONTRACT_ID = #{contractId}
+    </update>
+
+    <update id="updateContractStatus">
+        UPDATE TB_CONTRACT
+           SET STATUS_CD = #{statusCd},
+               UPD_DT = NOW()
+         WHERE CONTRACT_ID = #{contractId}
+    </update>
+
+</mapper>

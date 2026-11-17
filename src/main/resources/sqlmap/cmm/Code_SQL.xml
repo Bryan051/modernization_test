@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//ibatis.apache.org//DTD SQL Map 2.0//EN"
+        "http://ibatis.apache.org/dtd/sql-map-2.dtd">
+<!--
+    공통코드 SQL (iBATIS 2)
+    2016.03.14 홍길동  최초 작성
+    2018.09.03 김철수  정렬 컬럼을 화면에서 받도록 변경 ($sortCol$)
+-->
+<sqlMap namespace="code">
+
+    <select id="selectCodeList" parameterClass="java.util.HashMap" resultClass="java.util.HashMap">
+        SELECT GRP_CD, CD, CD_NM, SORT_ORD
+          FROM TB_CODE
+         WHERE GRP_CD = #grpCd#
+           AND USE_YN = 'Y'
+         ORDER BY $sortCol$
+    </select>
+
+    <select id="selectCodeName" parameterClass="java.util.HashMap" resultClass="java.lang.String">
+        SELECT CD_NM
+          FROM TB_CODE
+         WHERE GRP_CD = #grpCd#
+           AND CD = #cd#
+    </select>
+
+    <insert id="insertCode" parameterClass="java.util.HashMap">
+        INSERT INTO TB_CODE (GRP_CD, CD, CD_NM, SORT_ORD, USE_YN)
+        VALUES (#grpCd#, #cd#, #cdNm#, #sortOrd#, 'Y')
+    </insert>
+
+</sqlMap>

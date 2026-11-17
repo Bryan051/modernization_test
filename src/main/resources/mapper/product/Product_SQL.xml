@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<!--
+    제품 · 단가 SQL
+    2016.03.28 김철수  최초 작성 (iBATIS)
+    2019.08.22 홍길동  MyBatis 로 이전
+    2020.02.10 김철수  기간별 단가(TB_PRODUCT_PRICE) 조회 추가
+-->
+<mapper namespace="com.example.sms.product.service.impl.ProductMapper">
+
+    <select id="selectProductList" parameterType="java.util.HashMap"
+            resultType="com.example.sms.product.service.ProductVO">
+        SELECT PRODUCT_ID, PRODUCT_NM, PRODUCT_TYPE, UNIT_CD, UNIT_PRICE, USE_YN
+        FROM TB_PRODUCT
+        <where>
+            USE_YN = 'Y'
+            <if test="productNm != null and productNm != ''">
+                AND PRODUCT_NM LIKE CONCAT('%', #{productNm}, '%')
+            </if>
+            <if test="productType != null and productType != ''">
+                AND PRODUCT_TYPE = #{productType}
+            </if>
+        </where>
+        ORDER BY PRODUCT_NM
+    </select>
+
+    <select id="selectProduct" parameterType="string" resultType="com.example.sms.product.service.ProductVO">
+        SELECT PRODUCT_ID, PRODUCT_NM, PRODUCT_TYPE, UNIT_CD, UNIT_PRICE, USE_YN
+        FROM TB_PRODUCT
+        WHERE PRODUCT_ID = #{productId}
+    </select>
+
+    <!-- 기준일에 적용되는 기간별 단가가 있으면 그것을, 없으면 제품 기본단가를 돌려준다 -->
+    <select id="selectUnitPrice" resultType="java.lang.Long">
+        SELECT IFNULL((SELECT PP.UNIT_PRICE
+                         FROM TB_PRODUCT_PRICE PP
+                        WHERE PP.PRODUCT_ID = P.PRODUCT_ID
+                          AND #{baseDt} BETWEEN PP.APPLY_FROM_DT AND PP.APPLY_TO_DT
+                        ORDER BY PP.APPLY_FROM_DT DESC
+                        LIMIT 1), P.UNIT_PRICE)
+        FROM TB_PRODUCT P
+        WHERE P.PRODUCT_ID = #{productId}
+    </select>
+
+    <insert id="insertProduct" parameterType="com.example.sms.product.service.ProductVO">
+        INSERT INTO TB_PRODUCT (PRODUCT_ID, PRODUCT_NM, PRODUCT_TYPE, UNIT_CD, UNIT_PRICE, USE_YN, REG_DT)
+        VALUES (#{productId}, #{productNm}, #{productType}, #{unitCd}, #{unitPrice}, 'Y', NOW())
+    </insert>
+
+    <insert id="insertProductPrice" parameterType="java.util.HashMap">
+        INSERT INTO TB_PRODUCT_PRICE (PRODUCT_ID, CUST_GRADE, UNIT_PRICE, APPLY_FROM_DT, APPLY_TO_DT)
+        VALUES (#{productId}, #{custGrade}, #{unitPrice}, #{applyFromDt}, #{applyToDt})
+    </insert>
+
+    <update id="updateProduct" parameterType="com.example.sms.product.service.ProductVO">
+        UPDATE TB_PRODUCT
+           SET PRODUCT_NM = #{productNm},
+               PRODUCT_TYPE = #{productType},
+               UNIT_CD = #{unitCd},
+               UNIT_PRICE = #{unitPrice},
+               UPD_DT = NOW()
+         WHERE PRODUCT_ID = #{productId}
+    </update>
+
+</mapper>

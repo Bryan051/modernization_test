@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<!--
+    수금 · 미수 SQL
+    2017.03.13 홍길동  최초 작성 (iBATIS)
+    2019.08.22 홍길동  MyBatis 로 이전
+-->
+<mapper namespace="com.example.sms.collect.service.impl.CollectMapper">
+
+    <select id="selectCollectList" parameterType="java.util.HashMap" resultType="java.util.HashMap">
+        SELECT L.COLLECT_ID, L.BILL_ID, L.ORDER_ID, L.CUST_ID, C.CUST_NM, L.COLLECT_DT,
+               L.COLLECT_AMT, L.COLLECT_METHOD, L.REG_USER_ID
+        FROM TB_COLLECT L
+        LEFT OUTER JOIN TB_CUSTOMER C ON C.CUST_ID = L.CUST_ID
+        <where>
+            <if test="custId != null and custId != ''">
+                L.CUST_ID = #{custId}
+            </if>
+            <if test="billId != null and billId != ''">
+                AND L.BILL_ID = #{billId}
+            </if>
+            <if test="fromDt != null and fromDt != ''">
+                AND L.COLLECT_DT &gt;= #{fromDt}
+            </if>
+            <if test="toDt != null and toDt != ''">
+                AND L.COLLECT_DT &lt;= #{toDt}
+            </if>
+        </where>
+        ORDER BY L.COLLECT_DT DESC, L.COLLECT_ID DESC
+    </select>
+
+    <!-- 미수 목록 : 발행된 청구 중 아직 다 못 받은 건 -->
+    <select id="selectArrearsList" parameterType="java.util.HashMap" resultType="java.util.HashMap">
+        SELECT B.BILL_ID, B.ORDER_ID, B.CUST_ID, C.CUST_NM, B.BILL_DT, B.TOTAL_AMT,
+               IFNULL(P.PAID_AMT, 0) AS PAID_AMT,
+               B.TOTAL_AMT - IFNULL(P.PAID_AMT, 0) AS ARREARS_AMT,
+               DATEDIFF(NOW(), B.BILL_DT) AS OVERDUE_DAYS
+        FROM TB_BILL B
+        INNER JOIN TB_CUSTOMER C ON C.CUST_ID = B.CUST_ID
+        LEFT OUTER JOIN (SELECT BILL_ID, SUM(COLLECT_AMT) AS PAID_AMT
+                           FROM TB_COLLECT
+                          GROUP BY BILL_ID) P ON P.BILL_ID = B.BILL_ID
+        WHERE B.ISSUE_STATUS = '10'
+          AND B.TOTAL_AMT - IFNULL(P.PAID_AMT, 0) &gt; 0
+        <if test="overdueDays != null">
+          AND DATEDIFF(NOW(), B.BILL_DT) &gt;= #{overdueDays}
+        </if>
+        <if test="custId != null and custId != ''">
+          AND B.CUST_ID = #{custId}
+        </if>
+        ORDER BY OVERDUE_DAYS DESC, B.BILL_ID
+    </select>
+
+    <insert id="insertCollect" parameterType="java.util.HashMap">
+        INSERT INTO TB_COLLECT (COLLECT_ID, BILL_ID, ORDER_ID, CUST_ID, COLLECT_DT, COLLECT_AMT,
+                                COLLECT_METHOD, REG_USER_ID, REG_DT)
+        VALUES (#{collectId}, #{billId}, #{orderId}, #{custId}, #{collectDt}, #{collectAmt},
+                #{collectMethod}, #{regUserId}, NOW())
+    </insert>
+
+    <!-- 청구 한 건의 남은 금액 -->
+    <select id="selectBillBalance" parameterType="string" resultType="java.lang.Long">
+        SELECT B.TOTAL_AMT - IFNULL((SELECT SUM(L.COLLECT_AMT)
+                                       FROM TB_COLLECT L
+                                      WHERE L.BILL_ID = B.BILL_ID), 0)
+        FROM TB_BILL B
+        WHERE B.BILL_ID = #{billId}
+    </select>
+
+    <!-- 거래처 전체 미수 합계 -->
+    <select id="selectCustArrearsAmt" parameterType="string" resultType="java.lang.Long">
+        SELECT IFNULL(SUM(B.TOTAL_AMT), 0)
+               - IFNULL((SELECT SUM(L.COLLECT_AMT)
+                           FROM TB_COLLECT L
+                          WHERE L.CUST_ID = #{custId}), 0)
+        FROM TB_BILL B
+        WHERE B.CUST_ID = #{custId}
+          AND B.ISSUE_STATUS = '10'
+    </select>
+
+</mapper>

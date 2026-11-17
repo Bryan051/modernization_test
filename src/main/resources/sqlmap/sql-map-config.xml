@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMapConfig PUBLIC "-//ibatis.apache.org//DTD SQL Map Config 2.0//EN"
+        "http://ibatis.apache.org/dtd/sql-map-config-2.dtd">
+<!-- iBATIS 2 설정. 2019.08 이후 신규 SQL 은 MyBatis(mapper/) 에 작성한다 -->
+<sqlMapConfig>
+    <settings cacheModelsEnabled="true"
+              enhancementEnabled="true"
+              lazyLoadingEnabled="false"
+              maxRequests="128"
+              maxSessions="64"
+              maxTransactions="32"
+              useStatementNamespaces="true"/>
+
+    <sqlMap resource="sqlmap/cmm/Code_SQL.xml"/>
+    <sqlMap resource="sqlmap/cmm/Notice_SQL.xml"/>
+</sqlMapConfig>

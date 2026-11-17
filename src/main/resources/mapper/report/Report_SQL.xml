@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<!--
+    매출 집계 · 대시보드 SQL
+    2021.03.15 김철수  리포트 추가
+    2021.07.02 김철수  제품별 / 담당자별 조건 추가 (영업팀 요청)
+    2022.01.20 홍길동  수금액 컬럼 추가
+-->
+<mapper namespace="com.example.sms.report.service.impl.ReportMapper">
+
+    <!-- 매출 집계 조각 -->
+    <sql id="salesCols">
+        C.CUST_ID, C.CUST_NM, C.CUST_GRADE, U.USER_NM AS CHARGE_USER_NM,
+        O.ORDER_ID, O.ORDER_DT, O.ORDER_AMT, O.ORDER_STATUS,
+        P.PRODUCT_ID, P.PRODUCT_NM, OI.QTY, OI.AMT AS ITEM_AMT,
+        B.BILL_ID, B.TOTAL_AMT AS BILL_AMT,
+        IFNULL(CL.COLLECT_AMT, 0) AS COLLECT_AMT
+    </sql>
+
+    <sql id="salesFrom">
+        FROM TB_CUSTOMER C
+        INNER JOIN TB_ORDER O ON O.CUST_ID = C.CUST_ID
+        INNER JOIN TB_ORDER_ITEM OI ON OI.ORDER_ID = O.ORDER_ID
+        INNER JOIN TB_PRODUCT P ON P.PRODUCT_ID = OI.PRODUCT_ID
+        LEFT OUTER JOIN TB_USER U ON U.USER_ID = C.CHARGE_USER_ID
+        LEFT OUTER JOIN TB_BILL B ON B.ORDER_ID = O.ORDER_ID
+        LEFT OUTER JOIN TB_COLLECT CL ON CL.BILL_ID = B.BILL_ID
+    </sql>
+
+    <sql id="salesWhere">
+        <where>
+            O.ORDER_STATUS != '취소'
+            <if test="fromDt != null and fromDt != ''">
+                AND O.ORDER_DT &gt;= #{fromDt}
+            </if>
+            <if test="toDt != null and toDt != ''">
+                AND O.ORDER_DT &lt;= #{toDt}
+            </if>
+            <if test="custId != null and custId != ''">
+                AND C.CUST_ID = #{custId}
+            </if>
+            <if test="productId != null and productId != ''">
+                AND P.PRODUCT_ID = #{productId}
+            </if>
+            <if test="chargeUserId != null and chargeUserId != ''">
+                AND C.CHARGE_USER_ID = #{chargeUserId}
+            </if>
+        </where>
+    </sql>
+
+    <!-- 매출 집계 (상세) : 화면에서 거래처별로 합산해서 보여줌 -->
+    <select id="selectSalesSummary" parameterType="java.util.HashMap" resultType="java.util.HashMap">
+        SELECT
+        <include refid="salesCols"/>
+        <include refid="salesFrom"/>
+        <include refid="salesWhere"/>
+        ORDER BY O.ORDER_DT DESC, C.CUST_NM, P.PRODUCT_NM
+    </select>
+
+    <select id="selectMonthlySales" parameterType="java.util.HashMap" resultType="java.util.HashMap">
+        SELECT DATE_FORMAT(O.ORDER_DT, '%Y-%m') AS ORDER_YM,
+               COUNT(*) AS ORDER_CNT,
+               SUM(O.ORDER_AMT) AS ORDER_AMT
+        FROM TB_ORDER O
+        WHERE O.ORDER_DT BETWEEN #{fromDt} AND #{toDt}
+          AND O.ORDER_STATUS != '취소'
+        GROUP BY DATE_FORMAT(O.ORDER_DT, '%Y-%m')
+        ORDER BY ORDER_YM
+    </select>
+
+    <select id="selectTopCustomerList" parameterType="java.util.HashMap" resultType="java.util.HashMap">
+        SELECT C.CUST_ID, C.CUST_NM, SUM(O.ORDER_AMT) AS ORDER_AMT
+        FROM TB_CUSTOMER C
+        INNER JOIN TB_ORDER O ON O.CUST_ID = C.CUST_ID
+        WHERE O.ORDER_DT BETWEEN #{fromDt} AND #{toDt}
+          AND O.ORDER_STATUS != '취소'
+        GROUP BY C.CUST_ID, C.CUST_NM
+        ORDER BY ORDER_AMT DESC
+        LIMIT #{topN}
+    </select>
+
+    <select id="selectProductSales" parameterType="java.util.HashMap" resultType="java.util.HashMap">
+        SELECT P.PRODUCT_ID, P.PRODUCT_NM, SUM(OI.QTY) AS QTY, SUM(OI.AMT) AS ITEM_AMT
+        FROM TB_ORDER_ITEM OI
+        INNER JOIN TB_PRODUCT P ON P.PRODUCT_ID = OI.PRODUCT_ID
+        INNER JOIN TB_ORDER O ON O.ORDER_ID = OI.ORDER_ID
+        WHERE O.ORDER_DT BETWEEN #{fromDt} AND #{toDt}
+          AND O.ORDER_STATUS != '취소'
+        GROUP BY P.PRODUCT_ID, P.PRODUCT_NM
+        ORDER BY ITEM_AMT DESC
+    </select>
+
+</mapper>

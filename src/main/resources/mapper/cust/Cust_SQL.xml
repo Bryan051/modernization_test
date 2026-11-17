@@ -1,0 +1,151 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<!--
+    거래처 SQL
+    2016.03.14 홍길동  최초 작성 (iBATIS)
+    2019.08.22 홍길동  MyBatis 로 이전
+    2019.11.05 김철수  고객 요청으로 신용상태 · 담당자 조건 급히 추가
+-->
+<mapper namespace="com.example.sms.cust.service.impl.CustMapper">
+
+    <sql id="custCols">
+        C.CUST_ID, C.CUST_NM, C.BIZ_NO, C.CEO_NM, C.ADDR, C.ADDR_DTL, C.TEL_NO,
+        C.CUST_GRADE, C.CREDIT_STATUS, C.CREDIT_LIMIT, C.CHARGE_USER_ID, C.LAST_NOTICE_DT,
+        C.USE_YN, C.REG_USER_ID, C.REG_DT, C.UPD_DT
+    </sql>
+
+    <sql id="custWhere">
+        <where>
+            C.USE_YN = 'Y'
+            <if test="custNm != null and custNm != ''">
+                AND C.CUST_NM LIKE CONCAT('%', #{custNm}, '%')
+            </if>
+            <choose>
+                <when test="searchType == 'BIZ'">
+                    AND C.BIZ_NO = #{searchWord}
+                </when>
+                <when test="searchType == 'CEO'">
+                    AND C.CEO_NM LIKE CONCAT('%', #{searchWord}, '%')
+                </when>
+                <otherwise>
+                    <if test="searchWord != null and searchWord != ''">
+                        AND (C.CUST_NM LIKE CONCAT('%', #{searchWord}, '%')
+                             OR C.TEL_NO LIKE CONCAT('%', #{searchWord}, '%'))
+                    </if>
+                </otherwise>
+            </choose>
+            <if test="gradeList != null and gradeList.size() &gt; 0">
+                AND C.CUST_GRADE IN
+                <foreach collection="gradeList" item="grade" open="(" separator="," close=")">
+                    #{grade}
+                </foreach>
+            </if>
+            <if test="creditStatus != null and creditStatus != ''">
+                AND C.CREDIT_STATUS = #{creditStatus}
+            </if>
+            <if test="chargeUserId != null and chargeUserId != ''">
+                AND C.CHARGE_USER_ID = #{chargeUserId}
+            </if>
+        </where>
+    </sql>
+
+    <select id="selectCustList" parameterType="java.util.HashMap"
+            resultType="com.example.sms.cust.service.CustVO">
+        SELECT
+        <include refid="custCols"/>
+        FROM TB_CUSTOMER C
+        <include refid="custWhere"/>
+        ORDER BY ${sortCol} ${sortDir}
+        LIMIT #{startRow}, #{pageSize}
+    </select>
+
+    <select id="selectCustListCnt" parameterType="java.util.HashMap" resultType="int">
+        SELECT COUNT(*)
+        FROM TB_CUSTOMER C
+        <include refid="custWhere"/>
+    </select>
+
+    <select id="selectCust" parameterType="string" resultType="com.example.sms.cust.service.CustVO">
+        SELECT
+        <include refid="custCols"/>
+        FROM TB_CUSTOMER C
+        WHERE C.CUST_ID = #{custId}
+    </select>
+
+    <!-- 사업자번호 · 주소 등 서류에 쓰는 정보만 조회 -->
+    <select id="selectCustBizInfo" parameterType="string" resultType="java.util.HashMap">
+        SELECT CUST_NM, BIZ_NO, CEO_NM, ADDR, ADDR_DTL
+        FROM TB_CUSTOMER
+        WHERE CUST_ID = #{custId}
+    </select>
+
+    <select id="selectCustContactList" parameterType="string" resultType="java.util.HashMap">
+        SELECT CONTACT_ID, CUST_ID, CONTACT_NM, DEPT_NM, POSITION_NM, EMAIL, MOBILE_NO, MAIN_YN
+        FROM TB_CUST_CONTACT
+        WHERE CUST_ID = #{custId}
+        ORDER BY MAIN_YN DESC, CONTACT_ID
+    </select>
+
+    <select id="selectCustMainContact" parameterType="string" resultType="java.util.HashMap">
+        SELECT CONTACT_NM, EMAIL
+        FROM TB_CUST_CONTACT
+        WHERE CUST_ID = #{custId}
+          AND EMAIL IS NOT NULL
+        ORDER BY MAIN_YN DESC, CONTACT_ID
+        LIMIT 1
+    </select>
+
+    <insert id="insertCust" parameterType="com.example.sms.cust.service.CustVO">
+        INSERT INTO TB_CUSTOMER (
+            CUST_ID, CUST_NM, BIZ_NO, CEO_NM, ADDR, ADDR_DTL, TEL_NO,
+            CUST_GRADE, CREDIT_STATUS, CREDIT_LIMIT, CHARGE_USER_ID, USE_YN, REG_USER_ID, REG_DT
+        ) VALUES (
+            #{custId}, #{custNm}, #{bizNo}, #{ceoNm}, #{addr}, #{addrDtl}, #{telNo},
+            #{custGrade}, '01', #{creditLimit}, #{chargeUserId}, 'Y', #{regUserId}, NOW()
+        )
+    </insert>
+
+    <insert id="insertCustContact" parameterType="java.util.HashMap">
+        INSERT INTO TB_CUST_CONTACT (CUST_ID, CONTACT_NM, DEPT_NM, POSITION_NM, EMAIL, MOBILE_NO, MAIN_YN, REG_DT)
+        VALUES (#{custId}, #{contactNm}, #{deptNm}, #{positionNm}, #{email}, #{mobileNo}, #{mainYn}, NOW())
+    </insert>
+
+    <update id="updateCust" parameterType="com.example.sms.cust.service.CustVO">
+        UPDATE TB_CUSTOMER
+        <set>
+            <if test="custNm != null">CUST_NM = #{custNm},</if>
+            <if test="bizNo != null">BIZ_NO = #{bizNo},</if>
+            <if test="ceoNm != null">CEO_NM = #{ceoNm},</if>
+            <if test="addr != null">ADDR = #{addr},</if>
+            <if test="addrDtl != null">ADDR_DTL = #{addrDtl},</if>
+            <if test="telNo != null">TEL_NO = #{telNo},</if>
+            <if test="custGrade != null">CUST_GRADE = #{custGrade},</if>
+            <if test="chargeUserId != null">CHARGE_USER_ID = #{chargeUserId},</if>
+            UPD_DT = NOW()
+        </set>
+        WHERE CUST_ID = #{custId}
+    </update>
+
+    <!-- 여신상태 변경 : 01 정상 / 02 미수발생 / 03 연체 -->
+    <update id="updateCreditStatus">
+        UPDATE TB_CUSTOMER
+           SET CREDIT_STATUS = #{creditStatus},
+               UPD_DT = NOW()
+         WHERE CUST_ID = #{custId}
+    </update>
+
+    <update id="updateLastNoticeDt" parameterType="string">
+        UPDATE TB_CUSTOMER
+           SET LAST_NOTICE_DT = NOW()
+         WHERE CUST_ID = #{custId}
+    </update>
+
+    <!-- 삭제는 사용여부만 N 으로 -->
+    <update id="deleteCust" parameterType="string">
+        UPDATE TB_CUSTOMER
+           SET USE_YN = 'N',
+               UPD_DT = NOW()
+         WHERE CUST_ID = #{custId}
+    </update>
+
+</mapper>

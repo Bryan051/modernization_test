@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+    iBATIS 2 설정 (공통코드 · 공지 등 옛 공통 모듈용)
+    2016.03.07 홍길동  최초 작성
+    2019.08.22 홍길동  Spring 4 에 iBATIS 지원이 없어서 팩토리 빈을 직접 만들어 사용
+-->
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-4.3.xsd">
+
+    <bean id="sqlMapClient" class="com.example.sms.cmm.ibatis.SqlMapClientFactoryBean">
+        <property name="configLocation" value="classpath:sqlmap/sql-map-config.xml"/>
+    </bean>
+
+    <!-- 2018.06 DAO 를 XML 에 등록하던 것을 @Repository 로 변경
+    <bean id="codeDAO" class="com.example.sms.cmm.service.impl.CodeDAO"/>
+    <bean id="noticeDAO" class="com.example.sms.cmm.service.impl.NoticeDAO"/>
+    -->
+
+</beans>

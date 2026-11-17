@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//ibatis.apache.org//DTD SQL Map 2.0//EN"
+        "http://ibatis.apache.org/dtd/sql-map-2.dtd">
+<!--
+    공지사항 SQL (iBATIS 2)
+    2016.04.01 홍길동  최초 작성
+    2017.10.19 김철수  상단 고정(TOP_YN) 추가
+-->
+<sqlMap namespace="notice">
+
+    <select id="selectNoticeList" parameterClass="java.util.HashMap" resultClass="java.util.HashMap">
+        SELECT NOTICE_ID, TITLE, WRITER_ID, VIEW_CNT, TOP_YN, REG_DT
+          FROM TB_NOTICE
+        <dynamic prepend="WHERE">
+            <isNotEmpty prepend="AND" property="keyword">
+                TITLE LIKE CONCAT('%', #keyword#, '%')
+            </isNotEmpty>
+            <isNotEmpty prepend="AND" property="topYn">
+                TOP_YN = #topYn#
+            </isNotEmpty>
+        </dynamic>
+         ORDER BY TOP_YN DESC, $sortCol$
+         LIMIT #startRow#, #pageSize#
+    </select>
+
+    <select id="selectNotice" parameterClass="java.lang.Long" resultClass="java.util.HashMap">
+        SELECT NOTICE_ID, TITLE, CONTENT, WRITER_ID, VIEW_CNT, TOP_YN, REG_DT
+          FROM TB_NOTICE
+         WHERE NOTICE_ID = #value#
+    </select>
+
+    <insert id="insertNotice" parameterClass="java.util.HashMap">
+        INSERT INTO TB_NOTICE (TITLE, CONTENT, WRITER_ID, VIEW_CNT, TOP_YN, REG_DT)
+        VALUES (#title#, #content#, #writerId#, 0, #topYn#, NOW())
+    </insert>
+
+    <update id="updateNoticeViewCnt" parameterClass="java.lang.Long">
+        UPDATE TB_NOTICE
+           SET VIEW_CNT = VIEW_CNT + 1
+         WHERE NOTICE_ID = #value#
+    </update>
+
+</sqlMap>

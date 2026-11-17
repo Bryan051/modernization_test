@@ -1,0 +1,126 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<!--
+    수주 SQL
+    2016.07.11 김철수  최초 작성 (iBATIS)
+    2019.08.22 홍길동  MyBatis 로 이전
+    2021.03.15 김철수  월마감(CLOSE_YN, CLOSE_YM) 추가
+-->
+<mapper namespace="com.example.sms.order.service.impl.OrderMapper">
+
+    <!-- 2019.08 이전 작업 중 추가 -->
+    <sql id="tbOrder">TB_ORDER</sql>
+
+    <sql id="orderCols">
+        O.ORDER_ID, O.QUOTE_ID, O.CUST_ID, C.CUST_NM, O.ORDER_DT, O.ORDER_AMT, O.ORDER_STATUS,
+        O.CONTRACT_ID, O.CLOSE_YN, O.CLOSE_YM, O.CHARGE_USER_ID, O.REG_DT, O.UPD_DT
+    </sql>
+
+    <sql id="orderWhere">
+        <where>
+            <if test="custId != null and custId != ''">
+                O.CUST_ID = #{custId}
+            </if>
+            <if test="fromDt != null and fromDt != ''">
+                AND O.ORDER_DT &gt;= #{fromDt}
+            </if>
+            <if test="toDt != null and toDt != ''">
+                AND O.ORDER_DT &lt;= #{toDt}
+            </if>
+            <choose>
+                <when test="statusList != null and statusList.size() &gt; 0">
+                    AND O.ORDER_STATUS IN
+                    <foreach collection="statusList" item="st" open="(" separator="," close=")">
+                        #{st}
+                    </foreach>
+                </when>
+                <when test="orderStatus != null and orderStatus != ''">
+                    AND O.ORDER_STATUS = #{orderStatus}
+                </when>
+                <otherwise>
+                    AND O.ORDER_STATUS != '취소'
+                </otherwise>
+            </choose>
+        </where>
+    </sql>
+
+    <select id="selectOrderList" parameterType="java.util.HashMap"
+            resultType="com.example.sms.order.service.OrderVO">
+        SELECT
+        <include refid="orderCols"/>
+        FROM <include refid="tbOrder"/> O
+        LEFT OUTER JOIN TB_CUSTOMER C ON C.CUST_ID = O.CUST_ID
+        <include refid="orderWhere"/>
+        ORDER BY ${sortCol} ${sortDir}
+        LIMIT #{startRow}, #{pageSize}
+    </select>
+
+    <select id="selectOrderListCnt" parameterType="java.util.HashMap" resultType="int">
+        SELECT COUNT(*)
+        FROM <include refid="tbOrder"/> O
+        <include refid="orderWhere"/>
+    </select>
+
+    <select id="selectOrder" parameterType="string" resultType="com.example.sms.order.service.OrderVO">
+        SELECT
+        <include refid="orderCols"/>
+        FROM TB_ORDER O
+        LEFT OUTER JOIN TB_CUSTOMER C ON C.CUST_ID = O.CUST_ID
+        WHERE O.ORDER_ID = #{orderId}
+    </select>
+
+    <select id="selectOrderItemList" parameterType="string" resultType="java.util.HashMap">
+        SELECT I.ORDER_ID, I.ITEM_SEQ, I.PRODUCT_ID, P.PRODUCT_NM, I.QTY, I.UNIT_PRICE, I.AMT
+        FROM TB_ORDER_ITEM I
+        LEFT OUTER JOIN TB_PRODUCT P ON P.PRODUCT_ID = I.PRODUCT_ID
+        WHERE I.ORDER_ID = #{orderId}
+        ORDER BY I.ITEM_SEQ
+    </select>
+
+    <insert id="insertOrder" parameterType="com.example.sms.order.service.OrderVO">
+        INSERT INTO TB_ORDER (ORDER_ID, QUOTE_ID, CUST_ID, ORDER_DT, ORDER_AMT, ORDER_STATUS,
+                              CLOSE_YN, CHARGE_USER_ID, REG_DT)
+        VALUES (#{orderId}, #{quoteId}, #{custId}, #{orderDt}, #{orderAmt}, '접수',
+                'N', #{chargeUserId}, NOW())
+    </insert>
+
+    <insert id="insertOrderItem" parameterType="java.util.HashMap">
+        INSERT INTO TB_ORDER_ITEM (ORDER_ID, ITEM_SEQ, PRODUCT_ID, QTY, UNIT_PRICE, AMT)
+        VALUES (#{orderId}, #{itemSeq}, #{productId}, #{qty}, #{unitPrice}, #{amt})
+    </insert>
+
+    <update id="updateOrderStatus">
+        UPDATE TB_ORDER
+           SET ORDER_STATUS = #{orderStatus},
+               UPD_DT = NOW()
+         WHERE ORDER_ID = #{orderId}
+    </update>
+
+    <!-- 계약이 만들어지면 계약번호를 달고 상태를 계약완료로 -->
+    <update id="updateOrderContractId">
+        UPDATE TB_ORDER
+           SET CONTRACT_ID = #{contractId},
+               ORDER_STATUS = '계약완료',
+               UPD_DT = NOW()
+         WHERE ORDER_ID = #{orderId}
+    </update>
+
+    <update id="updateOrderAmount">
+        UPDATE TB_ORDER
+           SET ORDER_AMT = #{orderAmt},
+               UPD_DT = NOW()
+         WHERE ORDER_ID = #{orderId}
+    </update>
+
+    <!-- 월마감 : 수금까지 끝난 수주만 마감 처리 -->
+    <update id="updateCloseYn" parameterType="java.util.HashMap">
+        UPDATE <include refid="tbOrder"/>
+           SET CLOSE_YN = 'Y',
+               CLOSE_YM = #{closeYm},
+               UPD_DT = NOW()
+         WHERE ORDER_STATUS = '수금완료'
+           AND CLOSE_YN = 'N'
+           AND DATE_FORMAT(ORDER_DT, '%Y%m') &lt;= #{closeYm}
+    </update>
+
+</mapper>

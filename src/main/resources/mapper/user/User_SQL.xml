@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<!--
+    사원 · 부서 · 권한 SQL
+    2016.03.07 홍길동  최초 작성 (iBATIS)
+    2019.08.22 홍길동  MyBatis 로 이전
+-->
+<mapper namespace="com.example.sms.user.service.impl.UserMapper">
+
+    <!-- 로그인 : 비밀번호는 SHA2 해시로 비교 -->
+    <select id="selectLoginUser" resultType="com.example.sms.user.service.LoginVO">
+        SELECT U.USER_ID, U.USER_NM, U.DEPT_ID, D.DEPT_NM, U.AUTH_CD, A.AUTH_NM, U.EMAIL, U.TEL_NO, U.USE_YN
+        FROM TB_USER U
+        LEFT OUTER JOIN TB_DEPT D ON D.DEPT_ID = U.DEPT_ID
+        LEFT OUTER JOIN TB_AUTH A ON A.AUTH_CD = U.AUTH_CD
+        WHERE U.USER_ID = #{userId}
+          AND U.PASSWD = SHA2(#{passwd}, 256)
+          AND U.USE_YN = 'Y'
+    </select>
+
+    <select id="selectUserList" parameterType="java.util.HashMap" resultType="com.example.sms.user.service.LoginVO">
+        SELECT U.USER_ID, U.USER_NM, U.DEPT_ID, D.DEPT_NM, U.AUTH_CD, A.AUTH_NM, U.EMAIL, U.TEL_NO, U.USE_YN, U.LAST_LOGIN_DT
+        FROM TB_USER U
+        LEFT OUTER JOIN TB_DEPT D ON D.DEPT_ID = U.DEPT_ID
+        LEFT OUTER JOIN TB_AUTH A ON A.AUTH_CD = U.AUTH_CD
+        <where>
+            <if test="deptId != null and deptId != ''">
+                U.DEPT_ID = #{deptId}
+            </if>
+            <if test="userNm != null and userNm != ''">
+                AND U.USER_NM LIKE CONCAT('%', #{userNm}, '%')
+            </if>
+            <if test="authCd != null and authCd != ''">
+                AND U.AUTH_CD = #{authCd}
+            </if>
+        </where>
+        ORDER BY D.DEPT_NM, U.USER_NM
+    </select>
+
+    <select id="selectUser" parameterType="string" resultType="com.example.sms.user.service.LoginVO">
+        SELECT U.USER_ID, U.USER_NM, U.DEPT_ID, D.DEPT_NM, U.AUTH_CD, A.AUTH_NM, U.EMAIL, U.TEL_NO, U.USE_YN, U.LAST_LOGIN_DT
+        FROM TB_USER U
+        LEFT OUTER JOIN TB_DEPT D ON D.DEPT_ID = U.DEPT_ID
+        LEFT OUTER JOIN TB_AUTH A ON A.AUTH_CD = U.AUTH_CD
+        WHERE U.USER_ID = #{userId}
+    </select>
+
+    <select id="selectDeptList" resultType="java.util.HashMap">
+        SELECT DEPT_ID, DEPT_NM, PARENT_DEPT_ID
+        FROM TB_DEPT
+        WHERE USE_YN = 'Y'
+        ORDER BY DEPT_NM
+    </select>
+
+    <update id="updateLastLoginDt" parameterType="string">
+        UPDATE TB_USER
+           SET LAST_LOGIN_DT = NOW()
+         WHERE USER_ID = #{userId}
+    </update>
+
+    <insert id="insertUser" parameterType="com.example.sms.user.service.LoginVO">
+        INSERT INTO TB_USER (USER_ID, USER_NM, PASSWD, DEPT_ID, AUTH_CD, EMAIL, TEL_NO, USE_YN, REG_DT)
+        VALUES (#{userId}, #{userNm}, SHA2(#{passwd}, 256), #{deptId}, #{authCd}, #{email}, #{telNo}, 'Y', NOW())
+    </insert>
+
+    <update id="updateUser" parameterType="com.example.sms.user.service.LoginVO">
+        UPDATE TB_USER
+        <set>
+            <if test="userNm != null">USER_NM = #{userNm},</if>
+            <if test="deptId != null">DEPT_ID = #{deptId},</if>
+            <if test="authCd != null">AUTH_CD = #{authCd},</if>
+            <if test="email != null">EMAIL = #{email},</if>
+            <if test="telNo != null">TEL_NO = #{telNo},</if>
+            <if test="useYn != null">USE_YN = #{useYn},</if>
+            <if test="passwd != null and passwd != ''">PASSWD = SHA2(#{passwd}, 256),</if>
+            USER_ID = USER_ID
+        </set>
+        WHERE USER_ID = #{userId}
+    </update>
+
+</mapper>

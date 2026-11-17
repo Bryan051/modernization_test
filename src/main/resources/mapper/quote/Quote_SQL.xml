@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<!--
+    견적 SQL
+    2016.06.20 김철수  최초 작성 (iBATIS)
+    2019.08.22 홍길동  MyBatis 로 이전
+-->
+<mapper namespace="com.example.sms.quote.service.impl.QuoteMapper">
+
+    <sql id="quoteCols">
+        Q.QUOTE_ID, Q.OPPTY_ID, Q.CUST_ID, C.CUST_NM, Q.QUOTE_NM, Q.QUOTE_DT, Q.VALID_DT,
+        Q.TOTAL_AMT, Q.STATUS_CD, Q.CHARGE_USER_ID, Q.REG_DT, Q.UPD_DT
+    </sql>
+
+    <select id="selectQuoteList" parameterType="java.util.HashMap"
+            resultType="com.example.sms.quote.service.QuoteVO">
+        SELECT
+        <include refid="quoteCols"/>
+        FROM TB_QUOTE Q
+        LEFT OUTER JOIN TB_CUSTOMER C ON C.CUST_ID = Q.CUST_ID
+        <where>
+            <if test="custId != null and custId != ''">
+                Q.CUST_ID = #{custId}
+            </if>
+            <if test="statusCd != null and statusCd != ''">
+                AND Q.STATUS_CD = #{statusCd}
+            </if>
+            <if test="fromDt != null and fromDt != ''">
+                AND Q.QUOTE_DT &gt;= #{fromDt}
+            </if>
+            <if test="toDt != null and toDt != ''">
+                AND Q.QUOTE_DT &lt;= #{toDt}
+            </if>
+        </where>
+        ORDER BY Q.QUOTE_DT DESC, Q.QUOTE_ID DESC
+        LIMIT #{startRow}, #{pageSize}
+    </select>
+
+    <select id="selectQuote" parameterType="string" resultType="com.example.sms.quote.service.QuoteVO">
+        SELECT
+        <include refid="quoteCols"/>
+        FROM TB_QUOTE Q
+        LEFT OUTER JOIN TB_CUSTOMER C ON C.CUST_ID = Q.CUST_ID
+        WHERE Q.QUOTE_ID = #{quoteId}
+    </select>
+
+    <select id="selectQuoteItemList" parameterType="string" resultType="java.util.HashMap">
+        SELECT I.QUOTE_ID, I.ITEM_SEQ, I.PRODUCT_ID, P.PRODUCT_NM, I.QTY, I.UNIT_PRICE, I.AMT
+        FROM TB_QUOTE_ITEM I
+        LEFT OUTER JOIN TB_PRODUCT P ON P.PRODUCT_ID = I.PRODUCT_ID
+        WHERE I.QUOTE_ID = #{quoteId}
+        ORDER BY I.ITEM_SEQ
+    </select>
+
+    <insert id="insertQuote" parameterType="com.example.sms.quote.service.QuoteVO">
+        INSERT INTO TB_QUOTE (QUOTE_ID, OPPTY_ID, CUST_ID, QUOTE_NM, QUOTE_DT, VALID_DT,
+                              TOTAL_AMT, STATUS_CD, CHARGE_USER_ID, REG_DT)
+        VALUES (#{quoteId}, #{opptyId}, #{custId}, #{quoteNm}, #{quoteDt}, #{validDt},
+                #{totalAmt}, '10', #{chargeUserId}, NOW())
+    </insert>
+
+    <insert id="insertQuoteItem" parameterType="java.util.HashMap">
+        INSERT INTO TB_QUOTE_ITEM (QUOTE_ID, ITEM_SEQ, PRODUCT_ID, QTY, UNIT_PRICE, AMT)
+        VALUES (#{quoteId}, #{itemSeq}, #{productId}, #{qty}, #{unitPrice}, #{amt})
+    </insert>
+
+    <!-- 10 작성 / 20 제출 / 90 종결 -->
+    <update id="updateQuoteStatus">
+        UPDATE TB_QUOTE
+           SET STATUS_CD = #{statusCd},
+               UPD_DT = NOW()
+         WHERE QUOTE_ID = #{quoteId}
+    </update>
+
+</mapper>

@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<!--
+    청구(세금계산서) SQL
+    2016.09.05 김철수  최초 작성 (iBATIS)
+    2019.08.22 홍길동  MyBatis 로 이전
+    2019.11.05 김철수  전자세금계산서 연동 컬럼(ETAX_NO, ISSUE_STATUS) 급히 추가
+    2021.03.15 김철수  월마감 추가
+-->
+<mapper namespace="com.example.sms.bill.service.impl.BillMapper">
+
+    <sql id="billCols">
+        B.BILL_ID, B.ORDER_ID, B.CONTRACT_ID, B.CUST_ID, C.CUST_NM, B.BILL_DT, B.SUPPLY_AMT,
+        B.TAX_AMT, B.TOTAL_AMT, B.ETAX_NO, B.ISSUE_STATUS, B.CLOSE_YN, B.CLOSE_YM, B.REG_DT, B.UPD_DT
+    </sql>
+
+    <select id="selectBillList" parameterType="java.util.HashMap"
+            resultType="com.example.sms.bill.service.BillVO">
+        SELECT
+        <include refid="billCols"/>
+        FROM TB_BILL B
+        LEFT OUTER JOIN TB_CUSTOMER C ON C.CUST_ID = B.CUST_ID
+        <where>
+            <if test="custId != null and custId != ''">
+                B.CUST_ID = #{custId}
+            </if>
+            <if test="issueStatus != null and issueStatus != ''">
+                AND B.ISSUE_STATUS = #{issueStatus}
+            </if>
+            <if test="fromDt != null and fromDt != ''">
+                AND B.BILL_DT &gt;= #{fromDt}
+            </if>
+            <if test="toDt != null and toDt != ''">
+                AND B.BILL_DT &lt;= #{toDt}
+            </if>
+        </where>
+        ORDER BY B.BILL_DT DESC, B.BILL_ID DESC
+    </select>
+
+    <select id="selectBill" parameterType="string" resultType="com.example.sms.bill.service.BillVO">
+        SELECT
+        <include refid="billCols"/>
+        FROM TB_BILL B
+        LEFT OUTER JOIN TB_CUSTOMER C ON C.CUST_ID = B.CUST_ID
+        WHERE B.BILL_ID = #{billId}
+    </select>
+
+    <insert id="insertBill" parameterType="com.example.sms.bill.service.BillVO">
+        INSERT INTO TB_BILL (BILL_ID, ORDER_ID, CONTRACT_ID, CUST_ID, BILL_DT, SUPPLY_AMT, TAX_AMT,
+                             TOTAL_AMT, ISSUE_STATUS, CLOSE_YN, REG_DT)
+        VALUES (#{billId}, #{orderId}, #{contractId}, #{custId}, #{billDt}, #{supplyAmt}, #{taxAmt},
+                #{totalAmt}, '00', 'N', NOW())
+    </insert>
+
+    <!-- 전자세금계산서 승인번호 저장 : 00 대기 / 10 발행 / 90 실패 -->
+    <update id="updateBillEtax">
+        UPDATE TB_BILL
+           SET ETAX_NO = #{etaxNo},
+               ISSUE_STATUS = #{issueStatus},
+               UPD_DT = NOW()
+         WHERE BILL_ID = #{billId}
+    </update>
+
+    <!-- 월마감 : 발행 완료된 청구만 -->
+    <update id="updateCloseYn" parameterType="java.util.HashMap">
+        UPDATE TB_BILL
+           SET CLOSE_YN = 'Y',
+               CLOSE_YM = #{closeYm},
+               UPD_DT = NOW()
+         WHERE ISSUE_STATUS = '10'
+           AND CLOSE_YN = 'N'
+           AND DATE_FORMAT(BILL_DT, '%Y%m') &lt;= #{closeYm}
+    </update>
+
+</mapper>

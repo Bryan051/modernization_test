@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<!--
+    영업기회 SQL
+    2016.05.09 홍길동  최초 작성 (iBATIS)
+    2019.08.22 홍길동  MyBatis 로 이전
+-->
+<mapper namespace="com.example.sms.oppty.service.impl.OpptyMapper">
+
+    <select id="selectOpptyList" parameterType="java.util.HashMap" resultType="java.util.HashMap">
+        SELECT O.OPPTY_ID, O.CUST_ID, C.CUST_NM, O.OPPTY_NM, O.STAGE_CD, O.EXPECT_AMT,
+               O.EXPECT_CLOSE_DT, O.CHARGE_USER_ID, O.STATUS_CD, O.REG_DT
+        FROM TB_OPPTY O
+        LEFT OUTER JOIN TB_CUSTOMER C ON C.CUST_ID = O.CUST_ID
+        <where>
+            <if test="custId != null and custId != ''">
+                O.CUST_ID = #{custId}
+            </if>
+            <if test="stageCd != null and stageCd != ''">
+                AND O.STAGE_CD = #{stageCd}
+            </if>
+            <if test="chargeUserId != null and chargeUserId != ''">
+                AND O.CHARGE_USER_ID = #{chargeUserId}
+            </if>
+        </where>
+        ORDER BY O.EXPECT_CLOSE_DT, O.OPPTY_ID
+    </select>
+
+    <select id="selectOppty" parameterType="string" resultType="java.util.HashMap">
+        SELECT O.OPPTY_ID, O.CUST_ID, C.CUST_NM, O.OPPTY_NM, O.STAGE_CD, O.EXPECT_AMT,
+               O.EXPECT_CLOSE_DT, O.CHARGE_USER_ID, O.STATUS_CD, O.REG_DT, O.UPD_DT
+        FROM TB_OPPTY O
+        LEFT OUTER JOIN TB_CUSTOMER C ON C.CUST_ID = O.CUST_ID
+        WHERE O.OPPTY_ID = #{opptyId}
+    </select>
+
+    <!-- 구 화면용 -->
+    <select id="selectOpptyListOld" parameterType="java.util.HashMap" resultType="java.util.HashMap">
+        SELECT OPPTY_ID, CUST_ID, OPPTY_NM, STAGE_CD, EXPECT_AMT, EXPECT_CLOSE_DT
+        FROM TB_OPPTY
+        WHERE STATUS_CD = '10'
+        ORDER BY EXPECT_CLOSE_DT
+    </select>
+
+    <insert id="insertOppty" parameterType="java.util.HashMap">
+        INSERT INTO TB_OPPTY (OPPTY_ID, CUST_ID, OPPTY_NM, STAGE_CD, EXPECT_AMT, EXPECT_CLOSE_DT,
+                              CHARGE_USER_ID, STATUS_CD, REG_DT)
+        VALUES (#{opptyId}, #{custId}, #{opptyNm}, '10', #{expectAmt}, #{expectCloseDt},
+                #{chargeUserId}, '10', NOW())
+    </insert>
+
+    <update id="updateOpptyStage" parameterType="java.util.HashMap">
+        UPDATE TB_OPPTY
+           SET STAGE_CD = #{stageCd},
+               STATUS_CD = CASE WHEN #{stageCd} IN ('40', '90') THEN '90' ELSE '10' END,
+               UPD_DT = NOW()
+         WHERE OPPTY_ID = #{opptyId}
+    </update>
+
+</mapper>
